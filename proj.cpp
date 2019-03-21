@@ -73,8 +73,8 @@ void SRTF(Process p[], int n) {
 	priority_queue<Process, vector<Process>, 
 		function<bool(Process,Process)> > pq
 		([](const Process &a, const Process &b) -> bool {
-		if (a.length == b.length) return a.p_id < b.p_id;
-		return a.length < b.length;
+		if (a.length == b.length) return a.p_id > b.p_id;
+		return a.length > b.length;
 	});
 	sort(p, p+n, [](const Process &a, const Process &b) -> bool{ // sort it by arrival time, and then by length
 		if (a.arrival == b.arrival) {
@@ -85,34 +85,45 @@ void SRTF(Process p[], int n) {
 	});
 	int index = 0;
 	int current_time = p[0].arrival;
-	bool ok = 0;
+	bool ok = 0; int cnt = 0;
 	for (;current_time == p[index].arrival; index++) pq.push(p[index]);
 	while (!pq.empty()) { // pq will contain processes that are currently in the ready queue
 		ok = 0;
 		Process t = pq.top(); pq.pop(); // current running process
+		// cout << "Process: " << t.p_id << ' ' << t.length << endl;
+		current_time = max(current_time, t.arrival);
 		for (; index < n; index++) { // go through the array if there still more to process
 			if (current_time + t.length < p[index].arrival) {
-				cout << current_time << ' ' << t.p_id << ' ' << t.length << endl;
+				cout << "Process ID: " << t.p_id << endl;
+				cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 				current_time += t.length;
 				ok = 1;
 				break;
 			}
-			if (current_time + t.length - p[index].arrival > p[index].length) { // when the new process is better
-				cout << current_time << ' ' << t.p_id << ' ' << current_time + t.length - p[index].arrival << endl;
+			int tmp = current_time + t.length - p[index].arrival; 
+			if (tmp > p[index].length) { // when the new process is better
+				cout << current_time << ' ' << t.p_id << ' ' << p[index].arrival - current_time << endl;
 				pq.push(p[index]);
-				pq.push({p[index].arrival, current_time + t.length - p[index].arrival, t.priority, t.p_id});
+				pq.push({p[index].arrival, tmp, t.priority, t.p_id});
 				current_time = p[index].arrival;
 				ok = 1;
 				break;
 			} else {
 				pq.push(p[index]);
 			}
+			
 		}
+		// if (cnt > 15) break;
 		if (!ok) {
 			cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
+			// cout << "abc" << endl;
+			// cout << index << endl;
 			current_time += t.length;
 		}
-		if (pq.size() == 0 && index < n) pq.push(p[index++]); // if empty but theres still some processes
+		if (pq.size() == 0 && index < n) {
+			// cout << "def" << endl;
+			pq.push(p[index++]); // if empty but theres still some processes
+		}
 	}
 	
 }
