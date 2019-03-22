@@ -87,7 +87,7 @@ void SJF(Process p[], int n) {
 	}
 }
 
-void P(Process p[], int n) { // not done
+void P(Process p[], int n) { // probably done?
 	priority_queue<Process, vector<Process>, 
 		function<bool(Process,Process)> > pq
 		([](const Process &a, const Process &b) -> bool {
@@ -167,7 +167,7 @@ void SRTF(Process p[], int n) {
 		debug_text("--- CURRENT TIME: %d ---\n", t.p_id);
 		debug_text("Process ID: %d || Length: %d\n", t.p_id, t.length);
 		current_time = max(current_time, t.arrival);
-		for (; index < n; index++) { // go through the array if there still more to process
+		while (index < n) {
 			if (current_time + t.length < p[index].arrival) {
 				debug_text("CURRENT PROCESS ENDS BEFORE NEXT INDEX\n");
 				cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
@@ -175,6 +175,7 @@ void SRTF(Process p[], int n) {
 				ok = 1;
 				break;
 			}
+			// implies interception happens
 			int tmp = current_time + t.length - p[index].arrival; 
 			if (tmp > p[index].length) { // when the new process is better
 				debug_text("CURRENT PROCESS INTERRUPTED -- PROCESS %d PUSHED\n", p[index].p_id);
@@ -185,9 +186,8 @@ void SRTF(Process p[], int n) {
 				ok = 1;
 				break;
 			} else {
-				pq.push(p[index]);
+				pq.push(p[index++]);
 			}
-			
 		}
 		if (!ok) {
 			cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
@@ -197,7 +197,7 @@ void SRTF(Process p[], int n) {
 			pq.push(p[index++]); // if empty but theres still some processes
 		}
 	}
-	
+	debug_text("FINAL TIME: %d\n", current_time);
 }
 
 void RR (Process p[], int n, int q) {
