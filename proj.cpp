@@ -106,30 +106,30 @@ void P(Process p[], int n) { // not done
 	bool ok = 0; int cnt = 0;
 	for (;current_time == p[index].arrival && index < n; index++) pq.push(p[index]);
 	while (!pq.empty()) { // pq will contain processes that are currently in the ready queue
-		ok = 0;
-		Process t = pq.top(); pq.pop(); // current running process
-		debug_text("--- CURRENT TIME: %d ---\n", t.p_id);
-		debug_text("Process ID: %d || Priority: %d\n", t.p_id, t.priority);
+		Process t = pq.top(); pq.pop(); ok = 0;
 		current_time = max(current_time, t.arrival);
-		for (; index < n; index++) { // go through the array if there still more to process
-			if (current_time + t.length < p[index].arrival) {
+		debug_text("--- CURRENT TIME: %d ---\n", current_time);
+		debug_text("Process ID: %d || Priority: %d\n", t.p_id, t.priority);
+		while (index < n) {
+			if (current_time + t.length < p[index].arrival) { // this process will finish before next
 				debug_text("CURRENT PROCESS ENDS BEFORE NEXT INDEX\n");
 				cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 				current_time += t.length;
 				ok = 1;
 				break;
 			}
-			int tmp = current_time + t.length - p[index].arrival; 
-			if (t.priority > p[index].priority) { // when the new process is better
-				debug_text("CURRENT PROCESS INTERRUPTED -- PROCESS %d PUSHED\n", p[index].p_id);
+			// if above isn't satisfied, then interception happens
+			if (t.priority > p[index].priority) {
+				debug_text("CURRENT PROCESS INTERRUPTED. PROCESS %d PUSHED\n", p[index].p_id);
 				cout << current_time << ' ' << t.p_id << ' ' << p[index].arrival - current_time << endl;
 				pq.push(p[index]);
-				pq.push({p[index].arrival, tmp, t.priority, t.p_id});
-				current_time = p[index++].arrival;
+				pq.push({p[index].arrival, current_time + t.length - p[index].arrival, t.priority, t.p_id});
 				ok = 1;
+				current_time = p[index++].arrival;
 				break;
-			} 
-			
+			} else {
+				pq.push(p[index++]);
+			}
 		}
 		if (!ok) {
 			cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
