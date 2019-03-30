@@ -7,40 +7,9 @@ using namespace std;
 #define debug_text(...) /*---NOTHING---*/
 #endif
 
-/*
-d or i	Signed decimal integer	392
-u	Unsigned decimal integer	7235
-o	Unsigned octal	610
-x	Unsigned hexadecimal integer	7fa
-X	Unsigned hexadecimal integer (uppercase)	7FA
-f	Decimal floating point, lowercase	392.65
-F	Decimal floating point, uppercase	392.65
-e	Scientific notation (mantissa/exponent), lowercase	3.9265e+2
-E	Scientific notation (mantissa/exponent), uppercase	3.9265E+2
-g	Use the shortest representation: %e or %f	392.65
-G	Use the shortest representation: %E or %F	392.65
-a	Hexadecimal floating point, lowercase	-0xc.90fep-2
-A	Hexadecimal floating point, uppercase	-0XC.90FEP-2
-c	Character	a
-s	String of characters	sample
-p	Pointer address	b8000000
-n	Nothing printed.
-The corresponding argument must be a pointer to a signed int.
-The number of characters written so far is stored in the pointed location.	
-%	A % followed by another % character will write a single % to the stream.	%
-*/
-
-/*
-FCFS = First Come First Served
-SJF = Shortest Job First (non-preemptive)
-SRTF = Shortest Remaining Time First  (SJF preemptive)
-P = Priority (preemptive),
-RR Q = Round-Robin (the number after the  RR represents the time quantum).
-*/
-
 struct Process {
-	int arrival, length, priority, p_id;
-	Process() : arrival(0), length(0), priority(0), p_id(-1) {}
+	int arrival, length, priority, p_id, first_burst, termination;
+	Process() : arrival(0), length(0), priority(0), p_id(-1), first_burst(0), termination(0) {}
 	Process(int a, int b, int c, int d) : arrival(a), length(b), priority(c), p_id(d) {}
 };
 
@@ -77,6 +46,7 @@ void SJF(Process p[], int n) {
 	for (;current_time == p[index].arrival && index < n; index++) pq.push(p[index]);
 	while (!pq.empty()) {
 		Process t = pq.top(); pq.pop(); // current running process
+		current_time = max(current_time, t.arrival);
 		cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 		for (; index < n; index++) {
 			if (current_time + t.length < p[index].arrival) break;
@@ -206,11 +176,15 @@ void RR (Process p[], int n, int q) {
 		return a.arrival < b.arrival;
 	});
 	queue<Process> que;
-	for (int i = 0; i < n; i++) {
-		debug_text("CONTENT OF PROCESS %d:\nARRIVAL: %d, LENGTH: %d, PRIORITY: %d\n", p[i].p_id, p[i].arrival, p[i].length, p[i].priority);
-		que.push(p[i]);
-	}
-	int current_time = que.front().arrival;
+	int index = 0;
+	int current_time = p[0].arrival;
+	bool ok = 0; int cnt = 0;
+	for (;current_time == p[index].arrival && index < n; index++) que.push(p[index]);
+	// for (int i = 0; i < n; i++) {
+	// 	debug_text("CONTENT OF PROCESS %d:\nARRIVAL: %d, LENGTH: %d, PRIORITY: %d\n", p[i].p_id, p[i].arrival, p[i].length, p[i].priority);
+	// 	que.push(p[i]);
+	// }
+	// int current_time = que.front().arrival;
 	while (!que.empty()) {
 		Process t = que.front(); que.pop();
 		current_time = max(current_time, t.arrival);
@@ -219,9 +193,18 @@ void RR (Process p[], int n, int q) {
 			cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 			current_time += t.length;
 		} else {
-			cout << current_time << ' ' << t.p_id << ' ' << q << "\n";
-			que.push({current_time, t.length-q, t.priority, t.p_id});
-			current_time += q;
+			if (index >= n && que.size() == 0) {
+				cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
+				current_time += t.length;
+			} else {
+				cout << current_time << ' ' << t.p_id << ' ' << q << "\n";
+				que.push({current_time, t.length-q, t.priority, t.p_id});
+				current_time += q;
+			}
+		}
+		while (p[index].arrival < current_time && index < n) que.push(p[index++]);
+		if (que.size() == 0 && index < n) {
+			que.push(p[index++]); // if empty but theres still some processes
 		}
 	}
 }
@@ -231,15 +214,17 @@ int main () {
 	int tc, ctc = 0; 
 	cin >> tc;
 	while (tc--) {
-		int n; string process;
-		cin >> n >> process;
+		int n, time_quantum; string process;
+		cin >> n >> process; 
+		time_quantum = -1;
 		Process processes[n];
-		if (process != "RR") {
-			for (int i = 0; i < n; i++) {
-				int a, b, c; cin >> a >> b >> c;
-				processes[i] = {a,b,c,i+1};
-			}
+		if (process == "RR") cin >> time_quantum;
+		
+		for (int i = 0; i < n; i++) {
+			int a, b, c; cin >> a >> b >> c;
+			processes[i] = {a,b,c,i+1};
 		}
+		
 		cout << (++ctc) << endl;
 		if (process == "FCFS") {
 			FCFS(processes, n); // O(n lg n)
@@ -250,12 +235,7 @@ int main () {
 		} else if (process == "P") {
 			P(processes, n); // O(n lg n)
 		} else if (process == "RR") {
-			int time_quantum; cin >> time_quantum;
-			for (int i = 0; i < n; i++) {
-				int a, b, c; cin >> a >> b >> c;
-				processes[i] = {a,b,c,i+1};
-			}
-			RR(processes, n, time_quantum);
+			RR(processes, n, time_quantum); // O(n)
 		}
 	}
 	
