@@ -9,11 +9,34 @@ using namespace std;
 
 struct Process {
 	int arrival, length, priority, p_id, first_burst, termination;
-	Process() : arrival(0), length(0), priority(0), p_id(-1), first_burst(0), termination(0) {}
-	Process(int a, int b, int c, int d) : arrival(a), length(b), priority(c), p_id(d) {}
+	Process() : arrival(0), length(0), priority(0), p_id(-1), first_burst(-1), termination(-1) {}
+	Process(int a, int b, int c, int d) : arrival(a), length(b), priority(c), p_id(d), first_burst(-1), termination(-1) {}
 };
 
-void FCFS(Process p[], int n) {
+void compute_metrics(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
+	double cpu_utilization = 0, waiting_time = 0, turnaround_time = 0, response_time = 0;
+	int throughput = 0; int last_termination = 0;
+	for (int i = 0; i < n; i++) {
+		if (p[i].termination <= throughput_timestamp) throughput++;
+		last_termination = max(last_termination, p[i].termination);
+		response_time += p[i].first_burst;
+		waiting_time += p[i].termination - p[i].length - max(p[i].arrival-1,0);
+		turnaround_time += p[i].termination + 1; // remove + 1 if change convention
+	}
+	response_time /= n;
+	waiting_time /= n;
+	turnaround_time /= n;
+	cpu_utilization = (cpu_util_timestamp > last_termination ? (double)last_termination/(double)cpu_util_timestamp : 1.0);
+	printf("CPU Utilization: %.2f%%\n", cpu_utilization*100);
+	printf("Throughput: %d\n", throughput);
+	printf("Waiting time: %.2f\n", waiting_time);
+	printf("Turnaround time: %.2f\n", turnaround_time);
+	printf("Response time: %.2f\n", response_time);
+}
+
+void FCFS(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
+	Process pc[n];
+	for (int i = 0; i < n; i++) pc[i] = p[i];
 	sort(p, p+n, [](const Process &a, const Process &b) -> bool{
 		if (a.arrival == b.arrival) return a.p_id < b.p_id;
 		return a.arrival < b.arrival;
@@ -22,18 +45,23 @@ void FCFS(Process p[], int n) {
 	for (int i = 0; i < n; i++) {
 		debug_text("CURRENT TIME: %d\n", current_time);
 		current_time = max(current_time, p[i].arrival);
+		pc[p[i].p_id-1].first_burst = current_time; // first_burst = when it first executes
 		cout << current_time << ' ' << p[i].p_id << ' ' << p[i].length << 'X' << endl;
 		current_time += p[i].length;
+		pc[p[i].p_id-1].termination = current_time; // termination = when it terminates, possible adjust by 1
 	}
+	compute_metrics(pc, n, cpu_util_timestamp, throughput_timestamp);
 }
 
-void SJF(Process p[], int n) {
+void SJF(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
 	priority_queue<Process, vector<Process>, 
 		function<bool(Process,Process)> > pq
 		([](const Process &a, const Process &b) -> bool {
 		if (a.length == b.length) return a.p_id > b.p_id;
 		return a.length > b.length;
 	});
+	Process pc[n];
+	for (int i = 0; i < n; i++) pc[i] = p[i];
 	sort(p, p+n, [](const Process &a, const Process &b) -> bool{ // sort it by arrival time, and then by length
 		if (a.arrival == b.arrival) {
 			if (a.length == b.length) return a.p_id < b.p_id;
@@ -47,23 +75,28 @@ void SJF(Process p[], int n) {
 	while (!pq.empty()) {
 		Process t = pq.top(); pq.pop(); // current running process
 		current_time = max(current_time, t.arrival);
+		pc[t.p_id-1].first_burst = current_time;
 		cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 		for (; index < n; index++) {
-			if (current_time + t.length < p[index].arrival) break;
+			if (current_time + t.length < p[index].arrival) break; // <= bc processes that arrive on last can't run
 			pq.push(p[index]);
 		}
 		current_time += t.length;
+		pc[t.p_id-1].termination = current_time;
 		if (pq.size() == 0 && index < n) pq.push(p[index++]);
 	}
+	compute_metrics(pc, n, cpu_util_timestamp, throughput_timestamp);
 }
 
-void P(Process p[], int n) { // probably done?
+void P(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
 	priority_queue<Process, vector<Process>, 
 		function<bool(Process,Process)> > pq
 		([](const Process &a, const Process &b) -> bool {
 		if (a.priority == b.priority) return a.p_id > b.p_id;
 		return a.priority > b.priority;
 	});
+	Process pc[n];
+	for (int i = 0; i < n; i++) pc[i] = p[i];
 	sort(p, p+n, [](const Process &a, const Process &b) -> bool{ // sort it by arrival time, and then by priority
 		if (a.arrival == b.arrival) {
 			if (a.priority == b.priority) return a.p_id < b.p_id;
@@ -78,6 +111,7 @@ void P(Process p[], int n) { // probably done?
 	while (!pq.empty()) { // pq will contain processes that are currently in the ready queue
 		Process t = pq.top(); pq.pop(); ok = 0;
 		current_time = max(current_time, t.arrival);
+		if (pc[t.p_id-1].first_burst == -1) pc[t.p_id-1].first_burst = current_time;
 		debug_text("--- CURRENT TIME: %d ---\n", current_time);
 		debug_text("Process ID: %d || Priority: %d\n", t.p_id, t.priority);
 		while (index < n) {
@@ -85,6 +119,7 @@ void P(Process p[], int n) { // probably done?
 				debug_text("CURRENT PROCESS ENDS BEFORE NEXT INDEX\n");
 				cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 				current_time += t.length;
+				pc[t.p_id-1].termination = current_time;
 				ok = 1;
 				break;
 			}
@@ -104,22 +139,26 @@ void P(Process p[], int n) { // probably done?
 		if (!ok) {
 			cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 			current_time += t.length;
+			pc[t.p_id-1].termination = current_time;
 		}
 		if (pq.size() == 0 && index < n) {
 			pq.push(p[index++]); // if empty but theres still some processes
 		}
 	}
+	compute_metrics(pc, n, cpu_util_timestamp, throughput_timestamp);
 }
 
 // basically always do shortest remaining time
 // thus you have to make sure its sorted by remaining time
-void SRTF(Process p[], int n) {
+void SRTF(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
 	priority_queue<Process, vector<Process>, 
 		function<bool(Process,Process)> > pq
 		([](const Process &a, const Process &b) -> bool {
 		if (a.length == b.length) return a.p_id > b.p_id;
 		return a.length > b.length;
 	});
+	Process pc[n];
+	for (int i = 0; i < n; i++) pc[i] = p[i];
 	sort(p, p+n, [](const Process &a, const Process &b) -> bool{ // sort it by arrival time, and then by length
 		if (a.arrival == b.arrival) {
 			if (a.length == b.length) return a.p_id < b.p_id;
@@ -137,11 +176,13 @@ void SRTF(Process p[], int n) {
 		debug_text("--- CURRENT TIME: %d ---\n", t.p_id);
 		debug_text("Process ID: %d || Length: %d\n", t.p_id, t.length);
 		current_time = max(current_time, t.arrival);
+		if (pc[t.p_id-1].first_burst == -1) pc[t.p_id-1].first_burst = current_time;
 		while (index < n) {
 			if (current_time + t.length < p[index].arrival) {
 				debug_text("CURRENT PROCESS ENDS BEFORE NEXT INDEX\n");
 				cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 				current_time += t.length;
+				pc[t.p_id-1].termination = current_time;
 				ok = 1;
 				break;
 			}
@@ -162,15 +203,19 @@ void SRTF(Process p[], int n) {
 		if (!ok) {
 			cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 			current_time += t.length;
+			pc[t.p_id-1].termination = current_time;
 		}
 		if (pq.size() == 0 && index < n) {
 			pq.push(p[index++]); // if empty but theres still some processes
 		}
 	}
 	debug_text("FINAL TIME: %d\n", current_time);
+	compute_metrics(pc, n, cpu_util_timestamp, throughput_timestamp);
 }
 
-void RR (Process p[], int n, int q) {
+void RR (Process p[], int n, int q, int cpu_util_timestamp, int throughput_timestamp) {
+	Process pc[n];
+	for (int i = 0; i < n; i++) pc[i] = p[i];
 	sort(p, p+n, [](const Process &a, const Process &b) -> bool{
 		if (a.arrival == b.arrival) return a.p_id < b.p_id;
 		return a.arrival < b.arrival;
@@ -180,22 +225,20 @@ void RR (Process p[], int n, int q) {
 	int current_time = p[0].arrival;
 	bool ok = 0; int cnt = 0;
 	for (;current_time == p[index].arrival && index < n; index++) que.push(p[index]);
-	// for (int i = 0; i < n; i++) {
-	// 	debug_text("CONTENT OF PROCESS %d:\nARRIVAL: %d, LENGTH: %d, PRIORITY: %d\n", p[i].p_id, p[i].arrival, p[i].length, p[i].priority);
-	// 	que.push(p[i]);
-	// }
-	// int current_time = que.front().arrival;
 	while (!que.empty()) {
 		Process t = que.front(); que.pop();
 		current_time = max(current_time, t.arrival);
+		if (pc[t.p_id-1].first_burst == -1) pc[t.p_id-1].first_burst = current_time;
 		debug_text("CURRENT_TIME: %d || LENGTH: %d\n", current_time, t.length);
 		if (t.length <= q) {
 			cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 			current_time += t.length;
+			pc[t.p_id-1].termination = current_time;
 		} else {
 			if (index >= n && que.size() == 0) {
 				cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 				current_time += t.length;
+				pc[t.p_id-1].termination = current_time;
 			} else {
 				cout << current_time << ' ' << t.p_id << ' ' << q << "\n";
 				que.push({current_time, t.length-q, t.priority, t.p_id});
@@ -207,6 +250,7 @@ void RR (Process p[], int n, int q) {
 			que.push(p[index++]); // if empty but theres still some processes
 		}
 	}
+	compute_metrics(pc, n, cpu_util_timestamp, throughput_timestamp);
 }
 
 
@@ -214,12 +258,12 @@ int main () {
 	int tc, ctc = 0; 
 	cin >> tc;
 	while (tc--) {
-		int n, time_quantum; string process;
+		int n, time_quantum, cpu_util_timestamp, throughput_timestamp; string process;
 		cin >> n >> process; 
 		time_quantum = -1;
 		Process processes[n];
 		if (process == "RR") cin >> time_quantum;
-		
+		cin >> cpu_util_timestamp >> throughput_timestamp;
 		for (int i = 0; i < n; i++) {
 			int a, b, c; cin >> a >> b >> c;
 			processes[i] = {a,b,c,i+1};
@@ -227,15 +271,15 @@ int main () {
 		
 		cout << (++ctc) << endl;
 		if (process == "FCFS") {
-			FCFS(processes, n); // O(n lg n)
+			FCFS(processes, n, cpu_util_timestamp, throughput_timestamp); // O(n lg n)
 		} else if (process == "SJF") {
-			SJF(processes, n); // O(n lg n)
+			SJF(processes, n, cpu_util_timestamp, throughput_timestamp); // O(n lg n)
 		} else if (process == "SRTF") {
-			SRTF(processes, n); // O(2n lg n)
+			SRTF(processes, n, cpu_util_timestamp, throughput_timestamp); // O(2n lg n)
 		} else if (process == "P") {
-			P(processes, n); // O(n lg n)
+			P(processes, n, cpu_util_timestamp, throughput_timestamp); // O(n lg n)
 		} else if (process == "RR") {
-			RR(processes, n, time_quantum); // O(n)
+			RR(processes, n, time_quantum, cpu_util_timestamp, throughput_timestamp); // O(n)
 		}
 	}
 	
