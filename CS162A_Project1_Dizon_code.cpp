@@ -240,6 +240,7 @@ void RR (Process p[], int n, int q, int cpu_util_timestamp, int throughput_times
 			cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 			if (cpu_util_timestamp >= current_time) util_until += min(cpu_util_timestamp, current_time + t.length) - current_time;
 			current_time += t.length;
+			// while (index < n && p[index].arrival <= current_time) que.push(p[index++]);
 			pc[t.p_id-1].termination = current_time;
 		} else {
 			if (index >= n && que.size() == 0) {
@@ -250,11 +251,12 @@ void RR (Process p[], int n, int q, int cpu_util_timestamp, int throughput_times
 			} else {
 				cout << current_time << ' ' << t.p_id << ' ' << q << "\n";
 				if (cpu_util_timestamp >= current_time) util_until += min(cpu_util_timestamp, current_time + q) - current_time;
-				que.push({current_time, t.length-q, t.priority, t.p_id});
 				current_time += q;
+				while (index < n && p[index].arrival <= current_time) que.push(p[index++]);
+				que.push({current_time, t.length-q, t.priority, t.p_id});
 			}
 		}
-		while (p[index].arrival < current_time && index < n) que.push(p[index++]);
+		while (index < n && p[index].arrival < current_time) que.push(p[index++]);
 		if (que.size() == 0 && index < n) {
 			que.push(p[index++]); // if empty but theres still some processes
 		}

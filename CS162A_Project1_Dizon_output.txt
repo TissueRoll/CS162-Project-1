@@ -65,3 +65,15 @@ Throughput: 0
 Waiting time: 0.00
 Turnaround time: 95.00
 Response time: 55.00
+7
+0 1 25
+25 2 25
+50 1 5X
+55 2 20X
+75 4 15X
+90 3 10X
+CPU Utilization: 100.00%
+Throughput: 0
+Waiting time: 16.75
+Turnaround time: 80.00
+Response time: 47.50
