@@ -73,17 +73,14 @@ void SJF(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
 	});
 	int index = 0, util_until = 0;
 	int current_time = p[0].arrival;
-	for (;current_time == p[index].arrival && index < n; index++) pq.push(p[index]);
+	while (index < n && current_time == p[index].arrival) pq.push(p[index++]);
 	while (!pq.empty()) {
 		Process t = pq.top(); pq.pop(); // current running process
 		current_time = max(current_time, t.arrival);
 		pc[t.p_id-1].first_burst = current_time;
 		if (cpu_util_timestamp >= current_time) util_until += min(cpu_util_timestamp, current_time + t.length) - current_time;
 		cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
-		for (; index < n; index++) {
-			if (current_time + t.length < p[index].arrival) break; // <= bc processes that arrive exactly on time can't run
-			pq.push(p[index]);
-		}
+		while (index < n && p[index].arrival <= current_time + t.length) pq.push(p[index++]);
 		current_time += t.length;
 		pc[t.p_id-1].termination = current_time;
 		if (pq.size() == 0 && index < n) pq.push(p[index++]);
@@ -110,7 +107,7 @@ void P(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
 	int index = 0, util_until = 0;
 	int current_time = p[0].arrival;
 	bool ok = 0; int cnt = 0;
-	for (;current_time == p[index].arrival && index < n; index++) pq.push(p[index]);
+	while (index < n && current_time == p[index].arrival) pq.push(p[index++]);
 	while (!pq.empty()) { // pq will contain processes that are currently in the ready queue
 		Process t = pq.top(); pq.pop(); ok = 0;
 		current_time = max(current_time, t.arrival);
@@ -175,7 +172,7 @@ void SRTF(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) 
 	int index = 0, util_until;
 	int current_time = p[0].arrival;
 	bool ok = 0; int cnt = 0;
-	for (;current_time == p[index].arrival && index < n; index++) pq.push(p[index]);
+	while (index < n && current_time == p[index].arrival) pq.push(p[index++]);
 	while (!pq.empty()) { // pq will contain processes that are currently in the ready queue
 		ok = 0;
 		Process t = pq.top(); pq.pop(); // current running process
@@ -233,7 +230,7 @@ void RR (Process p[], int n, int q, int cpu_util_timestamp, int throughput_times
 	int index = 0, util_until = 0;
 	int current_time = p[0].arrival;
 	bool ok = 0; int cnt = 0;
-	for (;current_time == p[index].arrival && index < n; index++) que.push(p[index]);
+	while (index < n && current_time == p[index].arrival) que.push(p[index++]);
 	while (!que.empty()) {
 		Process t = que.front(); que.pop();
 		current_time = max(current_time, t.arrival);
