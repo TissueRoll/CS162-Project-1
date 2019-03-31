@@ -1,10 +1,16 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#ifdef DEBUG
+#ifdef _DEBUG
 #define debug_text(...) printf(__VA_ARGS__)
 #else
 #define debug_text(...) /*---NOTHING---*/
+#endif
+
+#ifdef _STD_TERMINATION
+#define CONVENTION 1
+#else
+#define CONVENTION 0
 #endif
 
 struct Process {
@@ -19,9 +25,11 @@ void compute_metrics(Process p[], int n, int cpu_util_timestamp, int throughput_
 	for (int i = 0; i < n; i++) {
 		if (p[i].termination <= throughput_timestamp) throughput++;
 		last_termination = max(last_termination, p[i].termination);
-		response_time += p[i].first_burst;
+		response_time += p[i].first_burst; // the beginning (the line) of the burst is the response time
+		// termination (counted by entire cc), length (counted by entire cc), arrival counted by LEFT BOUND
+		// thus converting to entire cc means i need to subtract it by 1
 		waiting_time += p[i].termination - p[i].length - max(p[i].arrival-1,0);
-		turnaround_time += p[i].termination + 1; // remove + 1 if change convention
+		turnaround_time += p[i].termination + CONVENTION;
 	}
 	response_time /= n;
 	waiting_time /= n;
@@ -45,10 +53,10 @@ void FCFS(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) 
 	for (int i = 0; i < n; i++) {
 		debug_text("CURRENT TIME: %d\n", current_time);
 		current_time = max(current_time, p[i].arrival);
-		pc[p[i].p_id-1].first_burst = current_time; // first_burst = when it first executes
+		pc[p[i].p_id-1].first_burst = current_time; // first_burst = the first cc it runs
 		cout << current_time << ' ' << p[i].p_id << ' ' << p[i].length << 'X' << endl;
 		current_time += p[i].length;
-		pc[p[i].p_id-1].termination = current_time; // termination = when it terminates, possible adjust by 1
+		pc[p[i].p_id-1].termination = current_time; // termination = the last cc it runs
 	}
 	compute_metrics(pc, n, cpu_util_timestamp, throughput_timestamp);
 }
@@ -78,7 +86,8 @@ void SJF(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
 		pc[t.p_id-1].first_burst = current_time;
 		cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 		for (; index < n; index++) {
-			if (current_time + t.length < p[index].arrival) break; // <= bc processes that arrive on last can't run
+			// - CONVENTION to check if next process arrives exactly on the current time
+			if (current_time + t.length - CONVENTION < p[index].arrival) break; // <= bc processes that arrive exactly on time can't run
 			pq.push(p[index]);
 		}
 		current_time += t.length;
@@ -115,7 +124,8 @@ void P(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
 		debug_text("--- CURRENT TIME: %d ---\n", current_time);
 		debug_text("Process ID: %d || Priority: %d\n", t.p_id, t.priority);
 		while (index < n) {
-			if (current_time + t.length < p[index].arrival) { // this process will finish before next
+			// - CONVENTION to check if next process arrives exactly on the current time
+			if (current_time + t.length - CONVENTION < p[index].arrival) { // this process will finish before next
 				debug_text("CURRENT PROCESS ENDS BEFORE NEXT INDEX\n");
 				cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 				current_time += t.length;
@@ -128,7 +138,7 @@ void P(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) {
 				debug_text("CURRENT PROCESS INTERRUPTED. PROCESS %d PUSHED\n", p[index].p_id);
 				cout << current_time << ' ' << t.p_id << ' ' << p[index].arrival - current_time << endl;
 				pq.push(p[index]);
-				pq.push({p[index].arrival, current_time + t.length - p[index].arrival, t.priority, t.p_id});
+				pq.push({p[index].arrival, current_time + t.length - p[index].arrival, t.priority, t.p_id, t.first_burst, t.termination});
 				ok = 1;
 				current_time = p[index++].arrival;
 				break;
@@ -178,7 +188,8 @@ void SRTF(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) 
 		current_time = max(current_time, t.arrival);
 		if (pc[t.p_id-1].first_burst == -1) pc[t.p_id-1].first_burst = current_time;
 		while (index < n) {
-			if (current_time + t.length < p[index].arrival) {
+			// - CONVENTION to check if next process arrives exactly on the current time
+			if (current_time + t.length - CONVENTION < p[index].arrival) {
 				debug_text("CURRENT PROCESS ENDS BEFORE NEXT INDEX\n");
 				cout << current_time << ' ' << t.p_id << ' ' << t.length << "X\n";
 				current_time += t.length;
@@ -192,7 +203,7 @@ void SRTF(Process p[], int n, int cpu_util_timestamp, int throughput_timestamp) 
 				debug_text("CURRENT PROCESS INTERRUPTED -- PROCESS %d PUSHED\n", p[index].p_id);
 				cout << current_time << ' ' << t.p_id << ' ' << p[index].arrival - current_time << endl;
 				pq.push(p[index]);
-				pq.push({p[index].arrival, tmp, t.priority, t.p_id});
+				pq.push({p[index].arrival, tmp, t.priority, t.p_id, t.first_burst, t.termination});
 				current_time = p[index++].arrival;
 				ok = 1;
 				break;
