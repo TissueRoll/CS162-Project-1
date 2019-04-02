@@ -10,6 +10,8 @@ It is a CPU scheduling simulator. It will output a kinda-Gantt chart and it will
 
 0. Please compile the code with argument -std=c++11
     e.g. g++ -std=c++11 CS162A_Project1_Dizon_code.cpp
+0.1. To compile with the standard discussed in class (bonus), compule the code by the command below
+    g++ -std=c++11 CS162A_Project1_Dizon_code.cpp -o CS162A_Project1_Dizon_code -D_CLASS_CONVENTION
 
 1. Input data as follows:
 # of test cases
