@@ -1,3 +1,4 @@
 @echo off
-set a=%1
-g++ -std=c++11 %a%.cpp -o %a%
+set file=%1
+set mode=%2
+if %mode%==1 (g++ -std=c++11 %file%.cpp -o %file% -D_CLASS_CONVENTION) else (g++ -std=c++11 %file%.cpp -o %file%)
